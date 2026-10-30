@@ -833,14 +833,34 @@ input.bad{border-color:var(--red);background:#ffe9ec}
     var gx = Math.max(-1, Math.min(1, g / 30)), gy = Math.max(-1, Math.min(1, b / 30));
     lookAt(innerWidth / 2 + gx * innerWidth * .5, innerHeight / 2 + gy * innerHeight * .5);
   }
+  /* batida do celular para o lado troca o card do herói */
+  var lastFlick = 0;
+  function onMotion(e){
+    var a = e.acceleration;
+    if (!a || a.x == null) return;
+    var ang = (screen.orientation && screen.orientation.angle) || 0, x = a.x;
+    if (ang === 90) x = -a.y; else if (ang === 270 || ang === -90) x = a.y;
+    var now = Date.now();
+    if (Math.abs(x) < 13 || now - lastFlick < 900) return;
+    var r = card.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight) return;
+    lastFlick = now;
+    stepCard(x > 0 ? 1 : -1);
+  }
   if (window.DeviceOrientationEvent && window.self === window.top) {
-    $("#hintText").textContent = "Card interativo: segue o cursor, o toque e o movimento do celular";
+    $("#hintText").textContent = "Card interativo: segue o cursor, o toque e o movimento do celular. Bata o celular para o lado para trocar de herói.";
     addEventListener("deviceorientation", onTilt);
-    if (typeof DeviceOrientationEvent.requestPermission === "function" && matchMedia("(pointer: coarse)").matches) {
+    addEventListener("devicemotion", onMotion);
+    var needOri = typeof DeviceOrientationEvent.requestPermission === "function";
+    var needMot = window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === "function";
+    if ((needOri || needMot) && matchMedia("(pointer: coarse)").matches) {
       var mb = $("#motionBtn"); mb.hidden = false;
       mb.addEventListener("click", function(){
-        DeviceOrientationEvent.requestPermission().then(function(r){
-          if (r === "granted") mb.hidden = true;
+        var reqs = [];
+        if (needOri) reqs.push(DeviceOrientationEvent.requestPermission());
+        if (needMot) reqs.push(DeviceMotionEvent.requestPermission());
+        Promise.all(reqs).then(function(rs){
+          if (rs.indexOf("granted") >= 0) mb.hidden = true;
           else mb.textContent = "Movimento não liberado";
         }, function(){ mb.hidden = true; });
       });
