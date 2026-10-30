@@ -549,7 +549,7 @@ input.bad{border-color:var(--red);background:#ffe9ec}
   </div>
 </div>
 
-<button class="btn small motion-btn" type="button" id="motionBtn" hidden>Ativar movimento do celular</button>
+<button class="btn small motion-btn" type="button" id="motionBtn" hidden>Ativar troca pela batida</button>
 <button class="btn baby fab" type="button" id="adminFab" hidden>Painel da família</button>
 <div class="admin" id="admin" hidden>
   <div class="admin-panel" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
@@ -824,20 +824,12 @@ input.bad{border-color:var(--red);background:#ffe9ec}
   addEventListener("touchstart", function(e){ var t = e.touches[0]; if (t) lookAt(t.clientX, t.clientY); }, { passive: true });
   addEventListener("touchmove", function(e){ var t = e.touches[0]; if (t) lookAt(t.clientX, t.clientY); }, { passive: true });
   addEventListener("scroll", function(){ if (target && !raf) raf = requestAnimationFrame(applyLook); }, { passive: true });
-  /* movimento do celular: só funciona em site próprio (fora do Claude, que bloqueia os sensores) */
-  function onTilt(e){
-    if (e.gamma == null || e.beta == null) return;
-    if (!$("#motionBtn").hidden) $("#motionBtn").hidden = true;
-    var ang = (screen.orientation && screen.orientation.angle) || 0, g = e.gamma, b = e.beta - 40;
-    if (ang === 90) { g = e.beta; b = -e.gamma - 40; } else if (ang === 270 || ang === -90) { g = -e.beta; b = e.gamma - 40; }
-    var gx = Math.max(-1, Math.min(1, g / 30)), gy = Math.max(-1, Math.min(1, b / 30));
-    lookAt(innerWidth / 2 + gx * innerWidth * .5, innerHeight / 2 + gy * innerHeight * .5);
-  }
   /* batida do celular para o lado troca o card do herói */
   var lastFlick = 0;
   function onMotion(e){
     var a = e.acceleration;
     if (!a || a.x == null) return;
+    if (!$("#motionBtn").hidden) $("#motionBtn").hidden = true;
     var ang = (screen.orientation && screen.orientation.angle) || 0, x = a.x;
     if (ang === 90) x = -a.y; else if (ang === 270 || ang === -90) x = a.y;
     var now = Date.now();
@@ -847,20 +839,15 @@ input.bad{border-color:var(--red);background:#ffe9ec}
     lastFlick = now;
     stepCard(x > 0 ? 1 : -1);
   }
-  if (window.DeviceOrientationEvent && window.self === window.top) {
-    $("#hintText").textContent = "Card interativo: segue o cursor, o toque e o movimento do celular. Bata o celular para o lado para trocar de herói.";
-    addEventListener("deviceorientation", onTilt);
+  if (window.DeviceMotionEvent && window.self === window.top) {
+    $("#hintText").textContent = "Card interativo: segue o cursor e o toque. Bata o celular para o lado para trocar de herói.";
     addEventListener("devicemotion", onMotion);
-    var needOri = typeof DeviceOrientationEvent.requestPermission === "function";
-    var needMot = window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === "function";
-    if ((needOri || needMot) && matchMedia("(pointer: coarse)").matches) {
+    var needMot = typeof DeviceMotionEvent.requestPermission === "function";
+    if (needMot && matchMedia("(pointer: coarse)").matches) {
       var mb = $("#motionBtn"); mb.hidden = false;
       mb.addEventListener("click", function(){
-        var reqs = [];
-        if (needOri) reqs.push(DeviceOrientationEvent.requestPermission());
-        if (needMot) reqs.push(DeviceMotionEvent.requestPermission());
-        Promise.all(reqs).then(function(rs){
-          if (rs.indexOf("granted") >= 0) mb.hidden = true;
+        DeviceMotionEvent.requestPermission().then(function(r){
+          if (r === "granted") mb.hidden = true;
           else mb.textContent = "Movimento não liberado";
         }, function(){ mb.hidden = true; });
       });
